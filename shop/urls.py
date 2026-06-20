@@ -8,6 +8,7 @@ from .views import (
     DashboardStatsView, 
     LowStockProductsView,
     RevenueReportView,
+    RegisterView,
     BestSellingProductsView,
     StockMovementViewSet, )
 
@@ -24,4 +25,5 @@ urlpatterns = [
     path('dashboard/revenue/', RevenueReportView.as_view()),
     path('dashboard/best-sellers/', BestSellingProductsView.as_view()),
     path('', include(router.urls)),
+    path("register/", RegisterView.as_view(), name="register"),
 ]

@@ -5,7 +5,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Category, Product, Order, OrderItem, CustomerProfile, OrderStatusHistory, StockMovement
@@ -15,19 +15,49 @@ from .serializers import (
     OrderSerializer,
     OrderItemSerializer,
     StockMovementSerializer,
+    StockAdjustmentSerializer
 )
 from .permissions import IsAdminOrReadOnly
 from .filters import ProductFilter
+from rest_framework import generics
+from .serializers import RegisterSerializer
 
+@extend_schema_view(
+    list=extend_schema(tags=["Categories"], summary="List categories"),
+    retrieve=extend_schema(tags=["Categories"], summary="Retrieve category details"),
+    create=extend_schema(tags=["Categories"], summary="Create category"),
+    update=extend_schema(tags=["Categories"], summary="Update category"),
+    partial_update=extend_schema(tags=["Categories"], summary="Partially update category"),
+    destroy=extend_schema(tags=["Categories"], summary="Delete category"),
+)
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAdminOrReadOnly]
 
+@extend_schema(
+    tags=["Authentication"],
+    summary="Register a new customer account",
+    description="Creates a new user account using username, email, password, and password confirmation.",)    
+
+
+class RegisterView(generics.CreateAPIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]    
+
+@extend_schema_view(
+    list=extend_schema(tags=["Products"], summary="List products"),
+    retrieve=extend_schema(tags=["Products"], summary="Retrieve product details"),
+    create=extend_schema(tags=["Products"], summary="Create product"),
+    update=extend_schema(tags=["Products"], summary="Update product"),
+    partial_update=extend_schema(tags=["Products"], summary="Partially update product"),
+    destroy=extend_schema(tags=["Products"], summary="Delete product"),
+)
+
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    queryset = Product.objects.all().order_by("id")
     serializer_class = ProductSerializer
     permission_classes = [IsAdminOrReadOnly]
 
@@ -50,6 +80,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         'stock',
         'name',
     ]
+
+
+    @extend_schema(
+    tags=["Products"],
+    summary="Adjust product stock manually",
+    description="Admin-only endpoint to increase or decrease product stock manually. Creates a stock movement with reason manual_adjustment.",
+    request=StockAdjustmentSerializer,)
 
     @action(detail=True, methods=['post'])
     def adjust_stock(self, request, pk=None):
@@ -105,6 +142,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
 
 
+
+@extend_schema_view(
+    list=extend_schema(tags=["Orders"], summary="List orders"),
+    retrieve=extend_schema(tags=["Orders"], summary="Retrieve order details"),
+    create=extend_schema(tags=["Orders"], summary="Create order"),
+    update=extend_schema(tags=["Orders"], summary="Update order"),
+    partial_update=extend_schema(tags=["Orders"], summary="Partially update order"),
+    destroy=extend_schema(tags=["Orders"], summary="Delete order"),
+)
+
 class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
     permission_classes = [AllowAny]
@@ -124,15 +171,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        user = self.request.user
+     user = self.request.user
 
-        if user.is_authenticated and user.is_staff:
-            return Order.objects.all()
+     if user.is_staff:
+        return Order.objects.all().order_by("-created_at", "-id")
 
-        if user.is_authenticated:
-            return Order.objects.filter(user=user)
+     if user.is_authenticated:
+        return Order.objects.filter(user=user).order_by("-created_at", "-id")
 
-        return Order.objects.none()
+     return Order.objects.none()
 
     def is_admin(self, request):
         return request.user.is_authenticated and request.user.is_staff
@@ -172,6 +219,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         else:
             serializer.save(user=None)
 
+
+    @extend_schema(
+    tags=["Orders"],
+    summary="Validate an order",
+    description="Admin-only endpoint to change an order from pending to validated and create status history.",
+)
     @action(detail=True, methods=['post'])
     def validate_order(self, request, pk=None):
         if not self.is_admin(request):
@@ -203,6 +256,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             {"message": "Order validated successfully."},
             status=status.HTTP_200_OK
         )
+    
+    @extend_schema(
+    tags=["Orders"],
+    summary="Cancel an order",
+    description="Admin-only endpoint to cancel an order, restore product stock, create stock movements, and create status history.",)
 
     @action(detail=True, methods=['post'])
     def cancel_order(self, request, pk=None):
@@ -250,6 +308,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         {"message": "Order cancelled successfully. Stock restored."},
         status=status.HTTP_200_OK
     )
+    @extend_schema(
+    tags=["Orders"],
+    summary="Mark order as delivered",
+    description="Admin-only endpoint to change a validated order to delivered and create status history.",
+)
 
     @action(detail=True, methods=['post'])
     def deliver_order(self, request, pk=None):
@@ -287,6 +350,11 @@ class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
     serializer_class = OrderItemSerializer
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get dashboard statistics",
+    description="Admin-only endpoint that returns order counts, revenue, and low-stock product count.",
+)
 
 
 class DashboardStatsView(APIView):
@@ -319,6 +387,13 @@ class DashboardStatsView(APIView):
             "total_revenue": total_revenue,
             "low_stock_products": low_stock_products,
         })
+    
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get low-stock products",
+    description="Admin-only endpoint that returns products with stock less than or equal to the low-stock threshold.",
+)
+ 
 
 class LowStockProductsView(APIView):
     permission_classes = [IsAdminUser]
@@ -328,6 +403,30 @@ class LowStockProductsView(APIView):
         serializer = ProductSerializer(products, many=True)
 
         return Response(serializer.data)
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get revenue report",
+    description="Admin-only endpoint that returns revenue from delivered orders. Supports optional start_date and end_date query parameters.",
+)
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get revenue report",
+    description="Admin-only endpoint that returns revenue from delivered orders. Supports optional start_date and end_date query parameters.",
+    parameters=[
+        OpenApiParameter(
+            name="start_date",
+            description="Start date filter in YYYY-MM-DD format.",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="end_date",
+            description="End date filter in YYYY-MM-DD format.",
+            required=False,
+            type=str,
+        ),
+    ],
+)
 
 class RevenueReportView(APIView):
     permission_classes = [IsAdminUser]
@@ -372,6 +471,32 @@ class RevenueReportView(APIView):
             "orders": orders_data,
         })
 
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get best-selling products report",
+    description="Admin-only endpoint that returns best-selling products based on delivered orders. Supports optional start_date and end_date query parameters.",
+)
+@extend_schema(
+    tags=["Dashboard"],
+    summary="Get best-selling products report",
+    description="Admin-only endpoint that returns best-selling products based on delivered orders. Supports optional start_date and end_date query parameters.",
+    parameters=[
+        OpenApiParameter(
+            name="start_date",
+            description="Start date filter in YYYY-MM-DD format.",
+            required=False,
+            type=str,
+        ),
+        OpenApiParameter(
+            name="end_date",
+            description="End date filter in YYYY-MM-DD format.",
+            required=False,
+            type=str,
+        ),
+    ],
+)
+
+
 class BestSellingProductsView(APIView):
     permission_classes = [IsAdminUser]
 
@@ -405,8 +530,73 @@ class BestSellingProductsView(APIView):
             "end_date": end_date,
             "products": best_sellers,
         })
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Products"],
+        summary="List products",
+        description="Returns products. Supports search, category filter, price range filter, and ordering.",
+        parameters=[
+            OpenApiParameter(
+                name="search",
+                description="Search by product name, description, or category name.",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                name="category",
+                description="Filter products by category ID.",
+                required=False,
+                type=int,
+            ),
+            OpenApiParameter(
+                name="min_price",
+                description="Filter products with price greater than or equal to this value.",
+                required=False,
+                type=float,
+            ),
+            OpenApiParameter(
+                name="max_price",
+                description="Filter products with price less than or equal to this value.",
+                required=False,
+                type=float,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                description="Order products by price, -price, stock, -stock, name, or -name.",
+                required=False,
+                type=str,
+            ),
+        ],
+    ),
+    retrieve=extend_schema(
+        tags=["Products"],
+        summary="Retrieve product details",
+    ),
+    create=extend_schema(
+        tags=["Products"],
+        summary="Create product",
+    ),
+    update=extend_schema(
+        tags=["Products"],
+        summary="Update product",
+    ),
+    partial_update=extend_schema(
+        tags=["Products"],
+        summary="Partially update product",
+    ),
+    destroy=extend_schema(
+        tags=["Products"],
+        summary="Delete product",
+    ),
+)
+
+
 
 class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = StockMovement.objects.all().order_by('-created_at')
+    queryset = StockMovement.objects.all().order_by("-created_at", "-id")
     serializer_class = StockMovementSerializer
     permission_classes = [IsAdminUser]
+    filterset_fields = ["product", "reason"]
+
+
+

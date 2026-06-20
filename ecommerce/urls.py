@@ -20,6 +20,28 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+from drf_spectacular.utils import extend_schema
+
+@extend_schema(
+    tags=["Authentication"],
+    summary="Login and get JWT tokens",
+    description="Returns access and refresh JWT tokens for a valid username and password.",
+)
+class CustomTokenObtainPairView(TokenObtainPairView):
+    pass
+
+
+@extend_schema(
+    tags=["Authentication"],
+    summary="Refresh JWT access token",
+    description="Returns a new access token using a valid refresh token.",
+)
+class CustomTokenRefreshView(TokenRefreshView):
+    pass
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -31,6 +53,9 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name='schema'),
         name='swagger-ui'
     ),
+    
+    path("api/token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", CustomTokenRefreshView.as_view(), name="token_refresh"),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
