@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Ecommerce API
 
 A Django REST Framework backend for an ecommerce system with product management, order management, stock tracking, dashboard reports, customer accounts, JWT authentication, and Swagger API documentation.
@@ -610,3 +611,62 @@ Automated test coverage
 ```
 
 The next possible step is building a frontend for customers and admins.
+=======
+# Ecommerce Frontend - Final Version
+
+Modern React + Vite storefront for the Django ecommerce backend.
+
+## Included features
+
+- Blue and white premium storefront UI
+- Product catalog with search, category, price filters, and sorting
+- Customer cart and checkout
+- JWT login and register
+- Customer order history
+- Admin dashboard access for staff users
+- Admin order actions: validate, deliver, cancel
+- Admin product creation
+- Admin stock adjustment using the correct backend endpoint
+- Customer-facing stock numbers are hidden
+- Customer-facing product statuses: Available, Limited, Coming soon, Out of stock
+- Expired JWT cleanup so public product loading does not break
+
+## Run
+
+Backend first:
+
+```powershell
+cd C:\Users\Chatti\ecommerce
+conda activate django-env
+python manage.py runserver
+```
+
+Frontend second:
+
+```powershell
+cd C:\Users\Chatti\ecommerce-frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173/
+```
+
+## Admin usage
+
+Login with your Django admin account. If the account is staff/superuser, the Admin tab appears automatically.
+
+## Product status rules
+
+The frontend hides exact stock quantity from customers and shows:
+
+- Available: stock greater than 5
+- Limited: stock from 1 to 5
+- Out of stock: stock is 0
+- Coming soon: product name or description includes `coming soon` or `soon`
+
+Admin can indirectly change the customer-facing status by changing stock or adding `coming soon` in the product text.
+>>>>>>> bc33884 (final frontend)
