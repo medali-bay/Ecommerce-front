@@ -2,8 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import api from "./api/axios";
 import "./App.css";
 
-const formatPrice = (value) => `${Number(value || 0).toFixed(2)} €`;
+const formatPrice = (value) => `${Number(value || 0).toFixed(2)} DT`;
+const API_BASE_URL = "https://ecommerce-e9wm.onrender.com";
 
+const getImageUrl = (image) => {
+  if (!image) return "";
+
+  if (image.startsWith("http")) {
+    return image;
+  }
+
+  return `${API_BASE_URL}${image}`;
+};
 const getProductStatus = (product) => {
   const text =
     `${product.name || ""} ${product.description || ""}`.toLowerCase();
@@ -726,7 +736,7 @@ function App() {
       <article className="product-card" key={product.id}>
         <div className="product-media">
           {product.image ? (
-            <img src={product.image} alt={product.name} />
+            <img src={getImageUrl(product.image)} alt={product.name} />
           ) : (
             <div className="product-placeholder">E</div>
           )}
@@ -1123,7 +1133,10 @@ function App() {
                         <div className="cart-item" key={item.id}>
                           <div className="mini-image">
                             {item.image ? (
-                              <img src={item.image} alt={item.name} />
+                              <img
+                                src={getImageUrl(item.image)}
+                                alt={item.name}
+                              />
                             ) : (
                               <span>E</span>
                             )}
