@@ -3,7 +3,7 @@ import axios from "axios";
 const PUBLIC_ENDPOINTS = ["/products/", "/categories/", "/register/", "/token/"];
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: "https://ecommerce-e9wm.onrender.com/api",
 });
 
 api.interceptors.request.use((config) => {
